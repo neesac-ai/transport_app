@@ -54,7 +54,17 @@ class _AdminUsersManagementScreenState extends State<AdminUsersManagementScreen>
   void _applyFilters() {
     setState(() {
       _filteredUsers = _allUsers.where((user) {
-        final matchesRole = _selectedRole == 'all' || (user.role?.toString().split('.').last ?? '') == _selectedRole;
+        // Fix role comparison - handle both camelCase and snake_case
+        String userRole = '';
+        if (user.role != null) {
+          userRole = user.role!.name;
+          // Convert tripManager to trip_manager for comparison
+          if (userRole == 'tripManager') {
+            userRole = 'trip_manager';
+          }
+        }
+        
+        final matchesRole = _selectedRole == 'all' || userRole == _selectedRole;
         final matchesSearch = _searchQuery.isEmpty || 
             user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             user.phoneNumber.contains(_searchQuery) ||
@@ -225,7 +235,7 @@ class _AdminUsersManagementScreenState extends State<AdminUsersManagementScreen>
                       const SizedBox(width: 8),
                       _buildRoleChip('admin', 'Admin'),
                       const SizedBox(width: 8),
-                      _buildRoleChip('traffic_manager', 'Traffic Manager'),
+                      _buildRoleChip('trip_manager', 'Trip Manager'),
                       const SizedBox(width: 8),
                       _buildRoleChip('driver', 'Driver'),
                       const SizedBox(width: 8),

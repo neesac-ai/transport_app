@@ -516,10 +516,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionCard(
-                  'Start Trip',
-                  Icons.play_arrow,
+                  'View Trip Details',
+                  Icons.visibility,
                   Colors.green,
-                  () => _showStartTripDialog(),
+                  () => _showViewTripDialog(),
                 ),
               ),
             ],
@@ -702,13 +702,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     );
   }
 
-  void _showStartTripDialog() {
+  void _showViewTripDialog() {
     if (_assignedTrips.isEmpty) return;
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Start Trip'),
+        title: const Text('View Trip Details'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: _assignedTrips.map((trip) => ListTile(
@@ -717,22 +717,25 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             trailing: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                // Navigate to trip details to start the trip
+                // Navigate to trip details to view the trip
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DriverTripDetailsScreen(trip: trip),
+                    builder: (context) => DriverTripDetailsScreen(
+                      trip: trip,
+                      user: widget.user,
+                    ),
                   ),
                 );
               },
-              child: const Text('Start'),
+              child: const Text('View'),
             ),
           )).toList(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Close'),
           ),
         ],
       ),

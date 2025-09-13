@@ -6,6 +6,8 @@ import 'profile_setup_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'driver_dashboard_screen.dart';
 import 'trip_manager_dashboard_screen.dart';
+import 'accountant_dashboard_screen.dart';
+import 'pump_partner_dashboard_screen.dart';
 
 class RoleDashboardScreen extends StatefulWidget {
   final UserModel user;
@@ -158,9 +160,11 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
         // This will handle its own navigation and layout
         return DriverDashboardScreen(user: widget.user);
       case UserRole.accountant:
-        return _buildAccountantDashboard();
+        // Return the new AccountantDashboardScreen directly
+        return AccountantDashboardScreen(user: widget.user);
       case UserRole.pumpPartner:
-        return _buildPumpPartnerDashboard();
+        // Return the new PumpPartnerDashboardScreen directly
+        return PumpPartnerDashboardScreen(user: widget.user);
     }
   }
 
@@ -204,7 +208,9 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
         ],
       ),
       body: _getCurrentScreen(),
-      bottomNavigationBar: (widget.user.role == UserRole.admin || widget.user.role == UserRole.driver || widget.user.role == UserRole.tripManager)
+      bottomNavigationBar: (widget.user.role == UserRole.admin || widget.user.role == UserRole.driver || 
+          widget.user.role == UserRole.tripManager || widget.user.role == UserRole.accountant ||
+          widget.user.role == UserRole.pumpPartner)
           ? null // Admin, Driver, and Trip Manager users use their own dashboard screens which have their own navigation
           : BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
@@ -222,184 +228,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
 
 
 
-  Widget _buildAccountantDashboard() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeCard(),
-          const SizedBox(height: 20),
-          const Text(
-            'Financial Management',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildActionCard(
-                  icon: Icons.receipt,
-                  title: 'Enter Expenses',
-                  color: Colors.green,
-                  onTap: () => _showComingSoon('Expense Entry'),
-                ),
-                _buildActionCard(
-                  icon: Icons.account_balance_wallet,
-                  title: 'Track Advances',
-                  color: Colors.blue,
-                  onTap: () => _showComingSoon('Advance Tracking'),
-                ),
-                _buildActionCard(
-                  icon: Icons.local_gas_station,
-                  title: 'Diesel Reconciliation',
-                  color: Colors.orange,
-                  onTap: () => _showComingSoon('Diesel Reconciliation'),
-                ),
-                _buildActionCard(
-                  icon: Icons.analytics,
-                  title: 'Financial Reports',
-                  color: Colors.purple,
-                  onTap: () => _showComingSoon('Financial Reports'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildPumpPartnerDashboard() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeCard(),
-          const SizedBox(height: 20),
-          const Text(
-            'Pump Operations',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildActionCard(
-                  icon: Icons.local_gas_station,
-                  title: 'Upload Diesel Data',
-                  color: Colors.green,
-                  onTap: () => _showComingSoon('Diesel Data Upload'),
-                ),
-                _buildActionCard(
-                  icon: Icons.camera_alt,
-                  title: 'Vehicle Photos',
-                  color: Colors.blue,
-                  onTap: () => _showComingSoon('Vehicle Photos'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome, ${widget.user.name}!',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Role: ${widget.user.role?.displayName ?? 'Not Set'}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Phone: ${widget.user.phoneNumber}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: 32,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildNoRoleScreen() {
     return Center(
@@ -431,12 +260,6 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature coming soon!')),
     );
   }
 }

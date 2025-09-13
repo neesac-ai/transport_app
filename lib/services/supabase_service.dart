@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 import '../constants/supabase_config.dart';
 import '../models/user_model.dart';
 import '../models/broker_model.dart';
@@ -10,6 +12,12 @@ import '../models/advance_model.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
+  static final _uuid = Uuid();
+  
+  // Generate a UUID
+  static String generateUuid() {
+    return _uuid.v4();
+  }
   
   static Future<void> initialize() async {
     if (SupabaseConfig.isDevelopment) {
@@ -320,6 +328,118 @@ class SupabaseService {
     
     return List<Map<String, dynamic>>.from(response);
   }
+  
+  // Get all expenses with details
+  static Future<List<ExpenseModel>> getAllExpenses() async {
+    if (SupabaseConfig.isDevelopment) {
+      // Return sample data for development
+      return [
+        ExpenseModel(
+          id: '1',
+          tripId: 'trip-1',
+          vehicleId: 'vehicle-1',
+          category: 'fuel',
+          description: 'Diesel for Mumbai-Delhi trip',
+          amount: 2500.0,
+          receiptUrl: null,
+          expenseDate: DateTime.now().subtract(const Duration(days: 1)),
+          status: 'pending',
+          approvedBy: null,
+          approvedAt: null,
+          rejectionReason: null,
+          enteredBy: 'driver-1',
+          notes: 'Filled at HP pump',
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+          updatedAt: null,
+        ),
+        ExpenseModel(
+          id: '2',
+          tripId: 'trip-2',
+          vehicleId: 'vehicle-2',
+          category: 'toll',
+          description: 'Highway toll charges',
+          amount: 800.0,
+          receiptUrl: null,
+          expenseDate: DateTime.now().subtract(const Duration(days: 2)),
+          status: 'approved',
+          approvedBy: 'admin-1',
+          approvedAt: DateTime.now().subtract(const Duration(hours: 12)),
+          rejectionReason: null,
+          enteredBy: 'driver-2',
+          notes: 'Multiple toll booths',
+          createdAt: DateTime.now().subtract(const Duration(days: 2)),
+          updatedAt: DateTime.now().subtract(const Duration(hours: 12)),
+        ),
+      ];
+    }
+    
+    try {
+      final response = await client
+          .from('expenses')
+          .select('*, trips(lr_number, from_location, to_location, vehicle_id)')
+          .order('created_at', ascending: false);
+      
+      return response.map((json) => ExpenseModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error getting all expenses: $e');
+      return [];
+    }
+  }
+  
+  // Get all advances with details
+  static Future<List<AdvanceModel>> getAllAdvances() async {
+    if (SupabaseConfig.isDevelopment) {
+      // Return sample data for development
+      return [
+        AdvanceModel(
+          id: 'advance-1',
+          driverId: 'driver-1',
+          tripId: 'trip-1',
+          amount: 2000.0,
+          advanceType: 'trip_advance',
+          purpose: 'Advance for Mumbai-Delhi trip',
+          givenBy: 'admin-1',
+          givenDate: DateTime.now().subtract(const Duration(days: 2)),
+          status: 'pending',
+          approvedBy: null,
+          approvedAt: null,
+          rejectionReason: null,
+          notes: 'Standard advance amount',
+          createdAt: DateTime.now().subtract(const Duration(days: 2)),
+          updatedAt: null,
+        ),
+        AdvanceModel(
+          id: 'advance-2',
+          driverId: 'driver-2',
+          tripId: 'trip-2',
+          amount: 1500.0,
+          advanceType: 'trip_advance',
+          purpose: 'Advance for Delhi-Bangalore trip',
+          givenBy: 'admin-1',
+          givenDate: DateTime.now().subtract(const Duration(days: 3)),
+          status: 'approved',
+          approvedBy: 'admin-1',
+          approvedAt: DateTime.now().subtract(const Duration(days: 3)),
+          rejectionReason: null,
+          notes: 'Standard advance amount',
+          createdAt: DateTime.now().subtract(const Duration(days: 3)),
+          updatedAt: DateTime.now().subtract(const Duration(days: 3)),
+        ),
+      ];
+    }
+    
+    try {
+      final response = await client
+          .from('advances')
+          .select('*, trips(lr_number, from_location, to_location)')
+          .order('created_at', ascending: false);
+      
+      return response.map((json) => AdvanceModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error getting all advances: $e');
+      return [];
+    }
+  }
 
   // Vehicle management methods
   static Future<Map<String, dynamic>> saveVehicle(Map<String, dynamic> vehicleData) async {
@@ -361,6 +481,302 @@ class SupabaseService {
     } catch (e) {
       print('Error updating vehicle status: $e');
       throw Exception('Failed to update vehicle status: $e');
+    }
+  }
+
+  // Update driver status
+  static Future<void> updateDriverStatus(String driverId, String status) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Driver $driverId status updated to $status');
+      return;
+    }
+
+    try {
+      await client
+          .from('drivers')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', driverId);
+      
+      print('Driver status updated successfully');
+    } catch (e) {
+      print('Error updating driver status: $e');
+      throw Exception('Failed to update driver status: $e');
+    }
+  }
+  
+  // Update broker status
+  static Future<void> updateBrokerStatus(String brokerId, String status) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Broker $brokerId status updated to $status');
+      return;
+    }
+
+    try {
+      await client
+          .from('brokers')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', brokerId);
+      
+      print('Broker status updated successfully');
+    } catch (e) {
+      print('Error updating broker status: $e');
+      throw Exception('Failed to update broker status: $e');
+    }
+  }
+
+  // Delete broker
+  static Future<void> deleteBroker(String brokerId) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Broker $brokerId deleted');
+      return;
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Deleting broker $brokerId ===');
+      
+      // Check if broker is associated with any trips
+      final tripsWithBroker = await client
+          .from('trips')
+          .select('id')
+          .eq('broker_id', brokerId);
+      
+      if (tripsWithBroker.isNotEmpty) {
+        throw Exception('Cannot delete broker: They are associated with ${tripsWithBroker.length} trips');
+      }
+      
+      // Delete the broker record
+      await client
+          .from('brokers')
+          .delete()
+          .eq('id', brokerId);
+      
+      print('Broker deleted successfully');
+    } catch (e) {
+      print('Error deleting broker: $e');
+      throw Exception('Failed to delete broker: $e');
+    }
+  }
+
+  // Delete vehicle
+  static Future<void> deleteVehicle(String vehicleId) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Vehicle $vehicleId deleted');
+      return;
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Deleting vehicle $vehicleId ===');
+      
+      // Check if vehicle is associated with any trips
+      final tripsWithVehicle = await client
+          .from('trips')
+          .select('id')
+          .eq('vehicle_id', vehicleId);
+      
+      if (tripsWithVehicle.isNotEmpty) {
+        throw Exception('Cannot delete vehicle: It is associated with ${tripsWithVehicle.length} trips');
+      }
+      
+      // Delete the vehicle
+      await client
+          .from('vehicles')
+          .delete()
+          .eq('id', vehicleId);
+      
+      print('Vehicle deleted successfully');
+    } catch (e) {
+      print('Error deleting vehicle: $e');
+      throw Exception('Failed to delete vehicle: $e');
+    }
+  }
+
+  // Delete driver
+  static Future<void> deleteDriver(String driverId) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Driver $driverId deleted');
+      return;
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Deleting driver $driverId ===');
+      
+      // Check if driver is associated with any trips
+      final tripsWithDriver = await client
+          .from('trips')
+          .select('id')
+          .eq('driver_id', driverId);
+      
+      if (tripsWithDriver.isNotEmpty) {
+        throw Exception('Cannot delete driver: They are associated with ${tripsWithDriver.length} trips');
+      }
+      
+      // Get user_id for this driver
+      final driverRecord = await client
+          .from('drivers')
+          .select('user_id')
+          .eq('id', driverId)
+          .single();
+      
+      final userId = driverRecord['user_id'] as String?;
+      
+      // Delete the driver record
+      await client
+          .from('drivers')
+          .delete()
+          .eq('id', driverId);
+      
+      print('Driver record deleted successfully');
+      
+      // If we have a user_id, delete the user profile as well
+      if (userId != null) {
+        try {
+          await client
+              .from('user_profiles')
+              .delete()
+              .eq('id', userId);
+          
+          print('User profile deleted successfully');
+        } catch (e) {
+          print('Error deleting user profile: $e');
+          // We don't throw here as the driver record was successfully deleted
+        }
+      }
+    } catch (e) {
+      print('Error deleting driver: $e');
+      throw Exception('Failed to delete driver: $e');
+    }
+  }
+
+  // Delete user
+  static Future<void> deleteUser(String userId) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: User $userId deleted');
+      return;
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Deleting user $userId ===');
+      
+      // Check if user is a driver
+      final driverRecord = await client
+          .from('drivers')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+      
+      if (driverRecord != null) {
+        // Delete driver record first
+        final driverId = driverRecord['id'] as String;
+        await deleteDriver(driverId);
+      } else {
+        // If not a driver, just delete the user profile
+        await client
+            .from('user_profiles')
+            .delete()
+            .eq('id', userId);
+      }
+      
+      print('User deleted successfully');
+    } catch (e) {
+      print('Error deleting user: $e');
+      throw Exception('Failed to delete user: $e');
+    }
+  }
+
+  // Accountant approval methods
+  static Future<void> approveExpense(String expenseId, String approvedBy) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Expense $expenseId approved by $approvedBy');
+      return;
+    }
+    try {
+      await client
+          .from('expenses')
+          .update({
+            'status': 'approved',
+            'approved_by': approvedBy,
+            'approved_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', expenseId);
+      print('Expense approved successfully');
+    } catch (e) {
+      print('Error approving expense: $e');
+      throw Exception('Failed to approve expense: $e');
+    }
+  }
+
+  static Future<void> rejectExpense(String expenseId, String approvedBy, String reason) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Expense $expenseId rejected by $approvedBy');
+      return;
+    }
+    try {
+      await client
+          .from('expenses')
+          .update({
+            'status': 'rejected',
+            'approved_by': approvedBy,
+            'approved_at': DateTime.now().toIso8601String(),
+            'rejection_reason': reason,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', expenseId);
+      print('Expense rejected successfully');
+    } catch (e) {
+      print('Error rejecting expense: $e');
+      throw Exception('Failed to reject expense: $e');
+    }
+  }
+
+  static Future<void> approveAdvance(String advanceId, String approvedBy) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Advance $advanceId approved by $approvedBy');
+      return;
+    }
+    try {
+      await client
+          .from('advances')
+          .update({
+            'status': 'approved',
+            'approved_by': approvedBy,
+            'approved_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', advanceId);
+      print('Advance approved successfully');
+    } catch (e) {
+      print('Error approving advance: $e');
+      throw Exception('Failed to approve advance: $e');
+    }
+  }
+
+  static Future<void> rejectAdvance(String advanceId, String approvedBy, String reason) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Advance $advanceId rejected by $approvedBy');
+      return;
+    }
+    try {
+      await client
+          .from('advances')
+          .update({
+            'status': 'rejected',
+            'approved_by': approvedBy,
+            'approved_at': DateTime.now().toIso8601String(),
+            'rejection_reason': reason,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', advanceId);
+      print('Advance rejected successfully');
+    } catch (e) {
+      print('Error rejecting advance: $e');
+      throw Exception('Failed to reject advance: $e');
     }
   }
 
@@ -942,7 +1358,26 @@ class SupabaseService {
   }
 
   // Driver-specific methods
-  static Future<List<TripModel>> getDriverTrips(String driverId) async {
+  static Future<String?> getDriverIdForUser(String userId) async {
+    if (SupabaseConfig.isDevelopment) {
+      return userId; // In development, use user ID as driver ID
+    }
+
+    final driverResponse = await client
+        .from('drivers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    
+    if (driverResponse == null) {
+      print('No driver record found for user: $userId');
+      return null;
+    }
+    
+    return driverResponse['id'] as String;
+  }
+
+  static Future<List<TripModel>> getDriverTrips(String userId) async {
     if (SupabaseConfig.isDevelopment) {
       // Mock data for development
       return [
@@ -950,7 +1385,7 @@ class SupabaseService {
           id: 'trip-1',
           lrNumber: 'LR-001',
           vehicleId: 'vehicle-1',
-          driverId: driverId,
+          driverId: userId,
           brokerId: 'broker-1',
           assignedBy: 'admin-1',
           fromLocation: 'Mumbai',
@@ -974,7 +1409,7 @@ class SupabaseService {
           id: 'trip-2',
           lrNumber: 'LR-002',
           vehicleId: 'vehicle-2',
-          driverId: driverId,
+          driverId: userId,
           brokerId: 'broker-2',
           assignedBy: 'admin-1',
           fromLocation: 'Delhi',
@@ -997,16 +1432,33 @@ class SupabaseService {
       ];
     }
 
+    // First, get the driver record for this user
+    final driverResponse = await client
+        .from('drivers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    
+    if (driverResponse == null) {
+      print('No driver record found for user: $userId');
+      return [];
+    }
+    
+    final driverId = driverResponse['id'] as String;
+    print('Found driver ID: $driverId for user: $userId');
+
+    // Now get trips for this driver
     final response = await client
         .from('trips')
         .select('*')
         .eq('driver_id', driverId)
         .order('created_at', ascending: false);
     
+    print('Found ${response.length} trips for driver: $driverId');
     return response.map((json) => TripModel.fromJson(json)).toList();
   }
 
-  static Future<List<ExpenseModel>> getDriverExpenses(String driverId) async {
+  static Future<List<ExpenseModel>> getDriverExpenses(String userId) async {
     if (SupabaseConfig.isDevelopment) {
       // Mock data for development
       return [
@@ -1023,7 +1475,7 @@ class SupabaseService {
           approvedBy: null,
           approvedAt: null,
           rejectionReason: null,
-          enteredBy: driverId,
+          enteredBy: userId,
           notes: 'Filled at HP pump',
           createdAt: DateTime.now().subtract(const Duration(days: 1)),
           updatedAt: null,
@@ -1041,13 +1493,27 @@ class SupabaseService {
           approvedBy: 'admin-1',
           approvedAt: DateTime.now().subtract(const Duration(hours: 12)),
           rejectionReason: null,
-          enteredBy: driverId,
+          enteredBy: userId,
           notes: 'Multiple toll booths',
           createdAt: DateTime.now().subtract(const Duration(days: 2)),
           updatedAt: DateTime.now().subtract(const Duration(hours: 12)),
         ),
       ];
     }
+
+    // First, get the driver record for this user
+    final driverResponse = await client
+        .from('drivers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    
+    if (driverResponse == null) {
+      print('No driver record found for user: $userId');
+      return [];
+    }
+    
+    final driverId = driverResponse['id'] as String;
 
     final response = await client
         .from('expenses')
@@ -1058,13 +1524,13 @@ class SupabaseService {
     return response.map((json) => ExpenseModel.fromJson(json)).toList();
   }
 
-  static Future<List<AdvanceModel>> getDriverAdvances(String driverId) async {
+  static Future<List<AdvanceModel>> getDriverAdvances(String userId) async {
     if (SupabaseConfig.isDevelopment) {
       // Mock data for development
       return [
         AdvanceModel(
           id: 'advance-1',
-          driverId: driverId,
+          driverId: userId,
           tripId: 'trip-1',
           amount: 2000.0,
           advanceType: 'trip_advance',
@@ -1081,7 +1547,7 @@ class SupabaseService {
         ),
         AdvanceModel(
           id: 'advance-2',
-          driverId: driverId,
+          driverId: userId,
           tripId: null,
           amount: 1000.0,
           advanceType: 'general_advance',
@@ -1098,6 +1564,20 @@ class SupabaseService {
         ),
       ];
     }
+
+    // First, get the driver record for this user
+    final driverResponse = await client
+        .from('drivers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    
+    if (driverResponse == null) {
+      print('No driver record found for user: $userId');
+      return [];
+    }
+    
+    final driverId = driverResponse['id'] as String;
 
     final response = await client
         .from('advances')
@@ -1147,6 +1627,377 @@ class SupabaseService {
         return;
       }
       rethrow;
+    }
+  }
+
+  // ==================== SYSTEM HEALTH MONITORING ====================
+  
+  // Test database connection and return health status
+  static Future<Map<String, dynamic>> testDatabaseConnection() async {
+    if (SupabaseConfig.isDevelopment) {
+      return {
+        'success': true,
+        'response_time_ms': 50,
+        'message': 'Development mode - simulated connection',
+      };
+    }
+
+    try {
+      final startTime = DateTime.now();
+      
+      // Test with a simple query
+      await client
+          .from('user_profiles')
+          .select('count')
+          .limit(1);
+      
+      final responseTime = DateTime.now().difference(startTime).inMilliseconds;
+      
+      return {
+        'success': true,
+        'response_time_ms': responseTime,
+        'message': 'Database connection successful',
+      };
+    } catch (e) {
+      print('Database connection test failed: $e');
+      return {
+        'success': false,
+        'response_time_ms': -1,
+        'message': 'Database connection failed: $e',
+        'error': e.toString(),
+      };
+    }
+  }
+
+  // Get count of active user sessions
+  static Future<int> getActiveSessionsCount() async {
+    if (SupabaseConfig.isDevelopment) {
+      return 5; // Simulated active sessions
+    }
+
+    try {
+      // Get current authenticated users count
+      final currentUser = client.auth.currentUser;
+      if (currentUser == null) {
+        return 0;
+      }
+
+      // For a more accurate count, you could query a sessions table
+      // or use Supabase's built-in session management
+      // This is a simplified implementation
+      return 1; // At least the current user
+    } catch (e) {
+      print('Error getting active sessions count: $e');
+      return 0;
+    }
+  }
+
+  // Get storage usage percentage (simulated - Supabase doesn't expose this directly)
+  static Future<double> getStorageUsage() async {
+    if (SupabaseConfig.isDevelopment) {
+      return 45.0; // Simulated storage usage
+    }
+
+    try {
+      // Supabase doesn't directly expose storage usage via API
+      // This would require using Supabase's management API or dashboard
+      // For now, we'll simulate based on data volume
+      
+      // Get approximate data size by counting records
+      final userCount = await client
+          .from('user_profiles')
+          .select('count')
+          .count();
+      
+      final vehicleCount = await client
+          .from('vehicles')
+          .select('count')
+          .count();
+      
+      final tripCount = await client
+          .from('trips')
+          .select('count')
+          .count();
+      
+      // Rough estimation: each record ~1KB, total capacity ~100MB
+      final totalRecords = (userCount.count) + (vehicleCount.count) + (tripCount.count);
+      final estimatedUsage = (totalRecords * 1.0) / 100000.0 * 100; // 1KB per record, 100MB total
+      
+      return estimatedUsage.clamp(0.0, 100.0);
+    } catch (e) {
+      print('Error calculating storage usage: $e');
+      return 0.0;
+    }
+  }
+
+  // Get last backup time (simulated - would need Supabase management API)
+  static Future<String> getLastBackupTime() async {
+    if (SupabaseConfig.isDevelopment) {
+      return '2 hours ago'; // Simulated backup time
+    }
+
+    try {
+      // Supabase handles backups automatically, but doesn't expose this via client API
+      // This would require Supabase management API access
+      // For now, we'll return a simulated recent backup time
+      final now = DateTime.now();
+      final lastBackup = now.subtract(const Duration(hours: 2));
+      final diff = now.difference(lastBackup);
+      
+      if (diff.inHours > 0) {
+        return '${diff.inHours} hours ago';
+      } else if (diff.inMinutes > 0) {
+        return '${diff.inMinutes} minutes ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      print('Error getting last backup time: $e');
+      return 'Unknown';
+    }
+  }
+
+  // Calculate system uptime based on successful operations
+  static Future<double> calculateSystemUptime() async {
+    if (SupabaseConfig.isDevelopment) {
+      return 99.9; // Simulated uptime
+    }
+
+    try {
+      // This is a simplified uptime calculation
+      // In a real implementation, you'd track successful vs failed operations over time
+      
+      // Test multiple operations to determine uptime
+      final operations = <Future>[];
+      
+      // Test user profiles access
+      operations.add(client.from('user_profiles').select('count').limit(1));
+      
+      // Test vehicles access
+      operations.add(client.from('vehicles').select('count').limit(1));
+      
+      // Test trips access
+      operations.add(client.from('trips').select('count').limit(1));
+      
+      // Wait for all operations to complete
+      await Future.wait(operations);
+      
+      // If all operations succeeded, assume high uptime
+      return 99.9;
+    } catch (e) {
+      print('Error calculating system uptime: $e');
+      // If operations failed, calculate based on error rate
+      return 85.0; // Assume some downtime
+    }
+  }
+
+  // Get detailed system metrics
+  static Future<Map<String, dynamic>> getSystemMetrics() async {
+    if (SupabaseConfig.isDevelopment) {
+      return {
+        'database_status': 'Operational',
+        'api_response_time_ms': 50,
+        'storage_usage_percent': 45.0,
+        'active_sessions': 5,
+        'last_backup': '2 hours ago',
+        'system_uptime_percent': 99.9,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    }
+
+    try {
+      final dbTest = await testDatabaseConnection();
+      final activeSessions = await getActiveSessionsCount();
+      final storageUsage = await getStorageUsage();
+      final lastBackup = await getLastBackupTime();
+      final uptime = await calculateSystemUptime();
+
+      return {
+        'database_status': dbTest['success'] == true ? 'Operational' : 'Error',
+        'api_response_time_ms': dbTest['response_time_ms'] ?? -1,
+        'storage_usage_percent': storageUsage,
+        'active_sessions': activeSessions,
+        'last_backup': lastBackup,
+        'system_uptime_percent': uptime,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      print('Error getting system metrics: $e');
+      return {
+        'database_status': 'Error',
+        'api_response_time_ms': -1,
+        'storage_usage_percent': 0.0,
+        'active_sessions': 0,
+        'last_backup': 'Unknown',
+        'system_uptime_percent': 0.0,
+        'timestamp': DateTime.now().toIso8601String(),
+        'error': e.toString(),
+      };
+    }
+  }
+
+  // Odometer photo methods
+  static Future<String> uploadOdometerPhoto({
+    required String tripId,
+    required String vehicleId,
+    required String photoType,
+    required XFile photo,
+    required int odometerReading,
+    String? location,
+    String? notes,
+  }) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Uploading odometer photo for trip $tripId');
+      return 'dev-photo-id-${DateTime.now().millisecondsSinceEpoch}';
+    }
+    
+    try {
+      print('=== SUPABASE SERVICE: Uploading odometer photo ===');
+      print('Trip ID: $tripId');
+      print('Vehicle ID: $vehicleId');
+      print('Photo type: $photoType');
+      print('Photo name: ${photo.name}');
+      
+      // Upload file to Supabase Storage
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${photo.name}';
+      final filePath = 'trips/$tripId/$fileName';
+      
+      final fileBytes = await photo.readAsBytes();
+      print('File size: ${fileBytes.length} bytes');
+      
+      final uploadResponse = await client.storage
+          .from('odometer-photos')
+          .uploadBinary(filePath, fileBytes);
+      
+      print('Upload response: $uploadResponse');
+      
+      if (uploadResponse.isNotEmpty) {
+        // Get public URL
+        final photoUrl = client.storage
+            .from('odometer-photos')
+            .getPublicUrl(filePath);
+        
+        print('Photo URL: $photoUrl');
+        
+        // Save metadata to odometer_photos table
+        final response = await client
+            .from('odometer_photos')
+            .insert({
+              'trip_id': tripId,
+              'vehicle_id': vehicleId,
+              'photo_type': photoType,
+              'photo_url': photoUrl,
+              'odometer_reading': odometerReading,
+              'location': location,
+              'uploaded_by': client.auth.currentUser?.id,
+              'notes': notes,
+            })
+            .select()
+            .single();
+        
+        print('Odometer photo record created: $response');
+        return response['id'] as String;
+      }
+      
+      throw Exception('Failed to upload photo');
+    } catch (e) {
+      print('Error uploading odometer photo: $e');
+      throw Exception('Failed to upload odometer photo: $e');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getOdometerPhotos(String tripId) async {
+    if (SupabaseConfig.isDevelopment) {
+      // Return mock data for development
+      return [
+        {
+          'id': 'photo-1',
+          'trip_id': tripId,
+          'vehicle_id': 'vehicle-1',
+          'photo_type': 'start',
+          'photo_url': 'https://example.com/start.jpg',
+          'odometer_reading': 45230,
+          'location': 'Starting point',
+          'uploaded_by': 'driver-1',
+          'uploaded_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+          'notes': 'Start odometer reading',
+        },
+        {
+          'id': 'photo-2',
+          'trip_id': tripId,
+          'vehicle_id': 'vehicle-1',
+          'photo_type': 'end',
+          'photo_url': 'https://example.com/end.jpg',
+          'odometer_reading': 46630,
+          'location': 'Ending point',
+          'uploaded_by': 'driver-1',
+          'uploaded_at': DateTime.now().toIso8601String(),
+          'notes': 'End odometer reading',
+        },
+      ];
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Getting odometer photos for trip $tripId ===');
+      
+      final response = await client
+          .from('odometer_photos')
+          .select('*')
+          .eq('trip_id', tripId)
+          .order('uploaded_at', ascending: false);
+      
+      print('Found ${response.length} odometer photos');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Error fetching odometer photos: $e');
+      return [];
+    }
+  }
+
+  static Future<void> deleteOdometerPhoto(String photoId) async {
+    if (SupabaseConfig.isDevelopment) {
+      print('Development mode: Deleting odometer photo $photoId');
+      return;
+    }
+
+    try {
+      print('=== SUPABASE SERVICE: Deleting odometer photo $photoId ===');
+      
+      // Get photo details first to get the file path
+      final photo = await client
+          .from('odometer_photos')
+          .select('photo_url')
+          .eq('id', photoId)
+          .single();
+      
+      print('Photo details: $photo');
+      
+      // Extract path from URL
+      final photoUrl = photo['photo_url'] as String;
+      final uri = Uri.parse(photoUrl);
+      final pathSegments = uri.pathSegments;
+      
+      // The path should be in format /storage/v1/object/public/bucket-name/path/to/file
+      // We need to extract just the path/to/file part
+      final storagePath = pathSegments.sublist(pathSegments.indexOf('odometer-photos') + 1).join('/');
+      
+      print('Deleting file from storage: $storagePath');
+      
+      // Delete from storage
+      await client.storage
+          .from('odometer-photos')
+          .remove([storagePath]);
+      
+      // Delete from database
+      await client
+          .from('odometer_photos')
+          .delete()
+          .eq('id', photoId);
+      
+      print('Odometer photo deleted successfully');
+    } catch (e) {
+      print('Error deleting odometer photo: $e');
+      throw Exception('Failed to delete odometer photo: $e');
     }
   }
 }

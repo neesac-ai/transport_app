@@ -22,6 +22,13 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   final _ratePerTonController = TextEditingController();
   final _commissionRateController = TextEditingController(text: '0');
   final _notesController = TextEditingController();
+  
+  // Silak allowance controllers
+  final _fuelAllowanceController = TextEditingController(text: '0');
+  final _foodAllowanceController = TextEditingController(text: '0');
+  final _stayAllowanceController = TextEditingController(text: '0');
+  final _otherAllowanceController = TextEditingController(text: '0');
+  final _otherAllowanceDescController = TextEditingController();
 
   String? _selectedVehicleId;
   String? _selectedDriverId;
@@ -49,6 +56,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     _ratePerTonController.dispose();
     _commissionRateController.dispose();
     _notesController.dispose();
+    
+    // Dispose silak controllers
+    _fuelAllowanceController.dispose();
+    _foodAllowanceController.dispose();
+    _stayAllowanceController.dispose();
+    _otherAllowanceController.dispose();
+    _otherAllowanceDescController.dispose();
+    
     super.dispose();
   }
 
@@ -111,6 +126,21 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     final commissionRate = double.tryParse(_commissionRateController.text) ?? 0.0;
     return totalRate * (commissionRate / 100);
   }
+  
+  double _calculateSilakAllowance() {
+    final distance = double.tryParse(_distanceController.text) ?? 0.0;
+    final fuelAllowance = double.tryParse(_fuelAllowanceController.text) ?? 0.0;
+    final foodAllowance = double.tryParse(_foodAllowanceController.text) ?? 0.0;
+    final stayAllowance = double.tryParse(_stayAllowanceController.text) ?? 0.0;
+    final otherAllowance = double.tryParse(_otherAllowanceController.text) ?? 0.0;
+    
+    final totalFuel = distance * fuelAllowance;
+    final totalFood = distance * foodAllowance;
+    final totalStay = distance * stayAllowance;
+    final totalOther = distance * otherAllowance;
+    
+    return totalFuel + totalFood + totalStay + totalOther;
+  }
 
   Future<void> _submitTrip() async {
     if (!_formKey.currentState!.validate()) return;
@@ -135,6 +165,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         ratePerTon: double.tryParse(_ratePerTonController.text),
         totalRate: _calculateTotalRate(),
         commissionAmount: _calculateCommission(),
+        silakAmount: _calculateSilakAllowance(),
         status: 'assigned',
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         createdAt: DateTime.now(),
@@ -332,7 +363,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     
                     // Broker Selection
                     DropdownButtonFormField<String?>(
-                      value: _selectedBrokerId,
+                      initialValue: _selectedBrokerId,
                       decoration: const InputDecoration(
                         labelText: 'Select Broker',
                         border: OutlineInputBorder(),
@@ -348,7 +379,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             value: broker.id,
                             child: Text('${broker.name} (${broker.company})'),
                           );
-                        }).toList(),
+                        }),
                       ],
                       onChanged: (value) {
                         setState(() => _selectedBrokerId = value);
@@ -382,6 +413,173 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     ),
                     const SizedBox(height: 24),
                     
+                    _buildSectionHeader('Silak Allowances'),
+                    const SizedBox(height: 16),
+                    
+                    // Silak allowances section
+                    Card(
+                      elevation: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Driver allowances calculated per kilometer',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Fuel allowance
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _fuelAllowanceController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Fuel Allowance (₹/km)',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.local_gas_station),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                if (double.tryParse(_distanceController.text) != null && double.tryParse(_fuelAllowanceController.text) != null)
+                                  Text(
+                                    'Total: ₹${(double.parse(_distanceController.text) * double.parse(_fuelAllowanceController.text)).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Food allowance
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _foodAllowanceController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Food Allowance (₹/km)',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.restaurant),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                if (double.tryParse(_distanceController.text) != null && double.tryParse(_foodAllowanceController.text) != null)
+                                  Text(
+                                    'Total: ₹${(double.parse(_distanceController.text) * double.parse(_foodAllowanceController.text)).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Stay allowance
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _stayAllowanceController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Stay Allowance (₹/km)',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.hotel),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                if (double.tryParse(_distanceController.text) != null && double.tryParse(_stayAllowanceController.text) != null)
+                                  Text(
+                                    'Total: ₹${(double.parse(_distanceController.text) * double.parse(_stayAllowanceController.text)).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Other allowance
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _otherAllowanceController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Other Allowance (₹/km)',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.more_horiz),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                if (double.tryParse(_distanceController.text) != null && double.tryParse(_otherAllowanceController.text) != null)
+                                  Text(
+                                    'Total: ₹${(double.parse(_distanceController.text) * double.parse(_otherAllowanceController.text)).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Description for other allowance
+                            TextFormField(
+                              controller: _otherAllowanceDescController,
+                              decoration: const InputDecoration(
+                                labelText: 'Other Allowance Description',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.description),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Total Silak Allowance
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue[200]!),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Total Silak Allowance:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${_calculateSilakAllowance().toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
                     _buildSectionHeader('Financial Summary'),
                     const SizedBox(height: 16),
                     
@@ -394,6 +592,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             _buildFinancialRow('Total Rate', '₹${_calculateTotalRate().toStringAsFixed(2)}'),
                             const Divider(),
                             _buildFinancialRow('Commission (${_commissionRateController.text}%)', '₹${_calculateCommission().toStringAsFixed(2)}'),
+                            const Divider(),
+                            _buildFinancialRow('Silak Allowance', '₹${_calculateSilakAllowance().toStringAsFixed(2)}'),
                             const Divider(),
                             _buildFinancialRow('Net Amount', '₹${(_calculateTotalRate() - _calculateCommission()).toStringAsFixed(2)}', isTotal: true),
                           ],

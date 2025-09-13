@@ -17,6 +17,12 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
   bool _isLoading = true;
   List<VehicleModel> _vehicles = [];
   List<DriverModel> _drivers = [];
+  List<VehicleModel> _filteredVehicles = [];
+  List<DriverModel> _filteredDrivers = [];
+  String _vehicleStatusFilter = 'all';
+  String _driverStatusFilter = 'all';
+  String _vehicleSearchQuery = '';
+  String _driverSearchQuery = '';
 
   @override
   void initState() {
@@ -37,12 +43,13 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
     });
 
     try {
-      final vehicles = await SupabaseService.getVehicles();
-      final drivers = await SupabaseService.getDrivers();
+      final vehicles = await SupabaseService.getAllVehicles();
+      final drivers = await SupabaseService.getAllDrivers();
       
       setState(() {
         _vehicles = vehicles;
         _drivers = drivers;
+        _applyFilters();
       });
     } catch (e) {
       print('Error loading fleet data: $e');
@@ -57,6 +64,56 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
         _isLoading = false;
       });
     }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      // Filter vehicles
+      _filteredVehicles = _vehicles.where((vehicle) {
+        final matchesStatus = _vehicleStatusFilter == 'all' || vehicle.status == _vehicleStatusFilter;
+        final matchesSearch = _vehicleSearchQuery.isEmpty || 
+            vehicle.registrationNumber.toLowerCase().contains(_vehicleSearchQuery.toLowerCase()) ||
+            vehicle.vehicleType.toLowerCase().contains(_vehicleSearchQuery.toLowerCase());
+        return matchesStatus && matchesSearch;
+      }).toList();
+
+      // Filter drivers
+      _filteredDrivers = _drivers.where((driver) {
+        final matchesStatus = _driverStatusFilter == 'all' || driver.status == _driverStatusFilter;
+        final matchesSearch = _driverSearchQuery.isEmpty || 
+            driver.name.toLowerCase().contains(_driverSearchQuery.toLowerCase()) ||
+            driver.licenseNumber.toLowerCase().contains(_driverSearchQuery.toLowerCase());
+        return matchesStatus && matchesSearch;
+      }).toList();
+    });
+  }
+
+  void _onVehicleStatusFilterChanged(String status) {
+    setState(() {
+      _vehicleStatusFilter = status;
+      _applyFilters();
+    });
+  }
+
+  void _onDriverStatusFilterChanged(String status) {
+    setState(() {
+      _driverStatusFilter = status;
+      _applyFilters();
+    });
+  }
+
+  void _onVehicleSearchChanged(String query) {
+    setState(() {
+      _vehicleSearchQuery = query;
+      _applyFilters();
+    });
+  }
+
+  void _onDriverSearchChanged(String query) {
+    setState(() {
+      _driverSearchQuery = query;
+      _applyFilters();
+    });
   }
 
   @override
@@ -87,14 +144,129 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
+          : Column(
               children: [
-                _buildVehiclesTab(),
-                _buildDriversTab(),
+                _buildFiltersSection(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildVehiclesTab(),
+                      _buildDriversTab(),
+                    ],
+                  ),
+                ),
               ],
             ),
       floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  Widget _buildFiltersSection() {
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, child) {
+        if (_tabController.index == 0) {
+          // Vehicles tab filters
+          return Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.grey[50],
+            child: Column(
+              children: [
+                // Search bar
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search vehicles by registration or type...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: _onVehicleSearchChanged,
+                ),
+                const SizedBox(height: 12),
+                // Status filter
+                Row(
+                  children: [
+                    const Text('Filter by Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildStatusChip('all', 'All', _vehicleStatusFilter, _onVehicleStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('active', 'Active', _vehicleStatusFilter, _onVehicleStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('maintenance', 'Maintenance', _vehicleStatusFilter, _onVehicleStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('inactive', 'Inactive', _vehicleStatusFilter, _onVehicleStatusFilterChanged),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Drivers tab filters
+          return Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.grey[50],
+            child: Column(
+              children: [
+                // Search bar
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search drivers by name or license...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: _onDriverSearchChanged,
+                ),
+                const SizedBox(height: 12),
+                // Status filter
+                Row(
+                  children: [
+                    const Text('Filter by Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildStatusChip('all', 'All', _driverStatusFilter, _onDriverStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('active', 'Active', _driverStatusFilter, _onDriverStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('inactive', 'Inactive', _driverStatusFilter, _onDriverStatusFilterChanged),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('pending', 'Pending', _driverStatusFilter, _onDriverStatusFilterChanged),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildStatusChip(String status, String label, String selectedStatus, Function(String) onChanged) {
+    final isSelected = selectedStatus == status;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) => onChanged(status),
+      selectedColor: AppColors.primaryBlue.withOpacity(0.2),
+      checkmarkColor: AppColors.primaryBlue,
     );
   }
 
@@ -119,7 +291,7 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
   }
 
   Widget _buildVehiclesTab() {
-    if (_vehicles.isEmpty) {
+    if (_filteredVehicles.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -161,9 +333,9 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _vehicles.length,
+      itemCount: _filteredVehicles.length,
       itemBuilder: (context, index) {
-        final vehicle = _vehicles[index];
+        final vehicle = _filteredVehicles[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
@@ -233,6 +405,16 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
                         ],
                       ),
                     ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 18, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -245,7 +427,7 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
   }
 
   Widget _buildDriversTab() {
-    if (_drivers.isEmpty) {
+    if (_filteredDrivers.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -277,9 +459,9 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _drivers.length,
+      itemCount: _filteredDrivers.length,
       itemBuilder: (context, index) {
-        final driver = _drivers[index];
+        final driver = _filteredDrivers[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
@@ -311,20 +493,62 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
                   Text('License Expiry: ${driver.licenseExpiry.toString().split(' ')[0]}'),
               ],
             ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _getStatusColor(driver.status),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                driver.status.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(driver.status),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    driver.status.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) => _handleDriverAction(value, driver),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit_status',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 18),
+                          SizedBox(width: 8),
+                          Text('Change Status'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'view_details',
+                      child: Row(
+                        children: [
+                          Icon(Icons.info, size: 18),
+                          SizedBox(width: 8),
+                          Text('View Details'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 18, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             onTap: () => _showDriverDetails(driver),
           ),
@@ -355,6 +579,23 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
         break;
       case 'view_details':
         _showVehicleDetails(vehicle);
+        break;
+      case 'delete':
+        _showDeleteVehicleConfirmation(vehicle);
+        break;
+    }
+  }
+
+  void _handleDriverAction(String action, DriverModel driver) {
+    switch (action) {
+      case 'edit_status':
+        _showDriverStatusChangeDialog(driver);
+        break;
+      case 'view_details':
+        _showDriverDetails(driver);
+        break;
+      case 'delete':
+        _showDeleteDriverConfirmation(driver);
         break;
     }
   }
@@ -437,6 +678,84 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
     }
   }
 
+  void _showDriverStatusChangeDialog(DriverModel driver) {
+    String currentStatus = driver.status;
+    String selectedStatus = currentStatus;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Change Status - ${driver.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Select new status:'),
+              const SizedBox(height: 16),
+              ...['active', 'inactive', 'pending'].map((status) => 
+                RadioListTile<String>(
+                  title: Text(status.toUpperCase()),
+                  value: status,
+                  groupValue: selectedStatus,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedStatus = value!;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selectedStatus != currentStatus
+                  ? () => _updateDriverStatus(driver, selectedStatus)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateDriverStatus(DriverModel driver, String newStatus) async {
+    try {
+      await SupabaseService.updateDriverStatus(driver.id, newStatus);
+      
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${driver.name} status updated to ${newStatus.toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the data
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showVehicleDetails(VehicleModel vehicle) {
     showDialog(
       context: context,
@@ -499,5 +818,194 @@ class _AdminFleetManagementScreenState extends State<AdminFleetManagementScreen>
     ).then((_) {
       _loadData(); // Refresh data after adding vehicle
     });
+  }
+
+  // Delete confirmation dialogs
+  void _showDeleteVehicleConfirmation(VehicleModel vehicle) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Vehicle?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'WARNING: This action cannot be undone!',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Text('Are you sure you want to permanently delete ${vehicle.registrationNumber}?'),
+            const SizedBox(height: 8),
+            const Text(
+              'Note: Vehicles associated with trips cannot be deleted.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _deleteVehicle(vehicle),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDriverConfirmation(DriverModel driver) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Driver?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'WARNING: This action cannot be undone!',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Text('Are you sure you want to permanently delete ${driver.name}?'),
+            const SizedBox(height: 8),
+            const Text(
+              'This will delete both the driver record and associated user account.',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Note: Drivers associated with trips cannot be deleted.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _deleteDriver(driver),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Delete operations
+  Future<void> _deleteVehicle(VehicleModel vehicle) async {
+    try {
+      Navigator.of(context).pop(); // Close confirmation dialog
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting vehicle...'),
+            ],
+          ),
+        ),
+      );
+      
+      await SupabaseService.deleteVehicle(vehicle.id);
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${vehicle.registrationNumber} deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Refresh data
+      _loadData();
+    } catch (e) {
+      // Close loading dialog if open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteDriver(DriverModel driver) async {
+    try {
+      Navigator.of(context).pop(); // Close confirmation dialog
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting driver...'),
+            ],
+          ),
+        ),
+      );
+      
+      await SupabaseService.deleteDriver(driver.id);
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${driver.name} deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Refresh data
+      _loadData();
+    } catch (e) {
+      // Close loading dialog if open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

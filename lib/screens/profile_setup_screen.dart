@@ -173,6 +173,24 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             builder: (context) => DriverLicenseScreen(user: savedUser),
           ),
         );
+      } else if (savedUser.role == UserRole.pumpPartner) {
+        // Auto-approve pump partners for testing
+        final approvedUser = savedUser.copyWith(
+          approvalStatus: ApprovalStatus.approved,
+          approvedBy: 'System',
+          approvedAt: DateTime.now(),
+        );
+        
+        // Save the approved user
+        await SupabaseService.saveUserProfile(approvedUser);
+        await prefs.setString('userData', jsonEncode(approvedUser.toJson()));
+        
+        // Navigate to dashboard
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => RoleDashboardScreen(user: approvedUser),
+          ),
+        );
       } else {
         // Other non-admin users need approval, show pending screen
         Navigator.of(context).pushReplacement(

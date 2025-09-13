@@ -218,20 +218,6 @@ class _DriverTripListScreenState extends State<DriverTripListScreen> {
                       child: const Text('View Details'),
                     ),
                   ),
-                  if (trip.status == 'assigned' || trip.status == 'in_progress') ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _updateTripStatus(trip),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        child: const Text('Update Status'),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],
@@ -274,56 +260,6 @@ class _DriverTripListScreenState extends State<DriverTripListScreen> {
     );
   }
 
-  void _updateTripStatus(TripModel trip) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Update Trip Status - ${trip.lrNumber}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (trip.status == 'assigned')
-              RadioListTile<String>(
-                title: const Text('Start Trip (In Progress)'),
-                value: 'in_progress',
-                groupValue: trip.status,
-                onChanged: (value) => _changeTripStatus(trip, value!),
-              ),
-            if (trip.status == 'in_progress')
-              RadioListTile<String>(
-                title: const Text('Complete Trip'),
-                value: 'completed',
-                groupValue: trip.status,
-                onChanged: (value) => _changeTripStatus(trip, value!),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _changeTripStatus(TripModel trip, String newStatus) async {
-    try {
-      await SupabaseService.updateTripStatus(trip.id, newStatus);
-      Navigator.pop(context);
-      _loadTrips();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Trip status updated to $newStatus'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      Navigator.pop(context);
-      _showErrorSnackBar('Failed to update trip status');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

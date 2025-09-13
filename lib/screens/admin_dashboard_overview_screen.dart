@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:version1/constants/app_colors.dart';
 import 'package:version1/services/supabase_service.dart';
 import 'admin_approval_screen.dart';
-import 'admin_fleet_overview_screen.dart';
+import 'admin_fleet_management_screen.dart';
 import 'admin_users_management_screen.dart';
 import 'admin_reports_screen.dart';
+import 'admin_broker_management_screen.dart';
 
 class AdminDashboardOverviewScreen extends StatefulWidget {
   const AdminDashboardOverviewScreen({super.key});
@@ -21,8 +22,20 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
   int _totalVehicles = 0;
   int _activeVehicles = 0;
   int _maintenanceVehicles = 0;
+  int _inactiveVehicles = 0;
+  int _totalDrivers = 0;
   int _activeDrivers = 0;
+  int _inactiveDrivers = 0;
+  int _totalTrips = 0;
+  int _completedTrips = 0;
+  int _inProgressTrips = 0;
+  double _totalRevenue = 0.0;
+  Map<String, dynamic> _systemHealth = {};
   String _recentActivity = '';
+
+  int _totalBrokers = 0;
+  int _activeBrokers = 0;
+  int _inactiveBrokers = 0;
 
   @override
   void initState() {
@@ -46,14 +59,35 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
       _activeUsers = allUsers.where((user) => user.approvalStatus.name == 'approved').length;
 
       // Load vehicles
-      final vehicles = await SupabaseService.getVehicles();
+      final vehicles = await SupabaseService.getAllVehicles();
       _totalVehicles = vehicles.length;
       _activeVehicles = vehicles.where((v) => v.status == 'active').length;
       _maintenanceVehicles = vehicles.where((v) => v.status == 'maintenance').length;
+      _inactiveVehicles = vehicles.where((v) => v.status == 'inactive').length;
 
       // Load drivers
-      final drivers = await SupabaseService.getDrivers();
+      final drivers = await SupabaseService.getAllDrivers();
+      _totalDrivers = drivers.length;
       _activeDrivers = drivers.where((d) => d.status == 'active').length;
+      _inactiveDrivers = drivers.where((d) => d.status == 'inactive').length;
+      
+      // Load brokers
+      final brokers = await SupabaseService.getBrokers();
+      _totalBrokers = brokers.length;
+      _activeBrokers = brokers.where((b) => b.status == 'active').length;
+      _inactiveBrokers = brokers.where((b) => b.status == 'inactive').length;
+
+      // Load trips
+      final trips = await SupabaseService.getAllTrips();
+      _totalTrips = trips.length;
+      _completedTrips = trips.where((t) => t.status == 'completed').length;
+      _inProgressTrips = trips.where((t) => t.status == 'in_progress').length;
+      _totalRevenue = trips
+          .where((t) => t.status == 'completed' || t.status == 'settled')
+          .fold(0.0, (sum, trip) => sum + (trip.totalRate ?? 0.0));
+
+      // Load system health
+      _systemHealth = await SupabaseService.getSystemMetrics();
 
       // Generate recent activity summary
       _generateRecentActivity();
@@ -80,6 +114,34 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
     
     if (_activeDrivers > 0) {
       activities.add('$_activeDrivers active drivers');
+    }
+    
+    if (_totalDrivers > 0) {
+      activities.add('$_totalDrivers total drivers');
+    }
+    
+    if (_inactiveDrivers > 0) {
+      activities.add('$_inactiveDrivers inactive drivers');
+    }
+    
+    if (_activeBrokers > 0) {
+      activities.add('$_activeBrokers active brokers');
+    }
+    
+    if (_totalBrokers > 0) {
+      activities.add('$_totalBrokers total brokers');
+    }
+    
+    if (_totalTrips > 0) {
+      activities.add('$_totalTrips total trips');
+    }
+    
+    if (_completedTrips > 0) {
+      activities.add('$_completedTrips completed trips');
+    }
+    
+    if (_totalRevenue > 0) {
+      activities.add('₹${_totalRevenue.toStringAsFixed(0)} total revenue');
     }
     
     _recentActivity = activities.isNotEmpty 
@@ -118,7 +180,11 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
                     const SizedBox(height: 16),
                     _buildFleetStatusCard(),
                     const SizedBox(height: 16),
+                    _buildBrokerCard(),
+                    const SizedBox(height: 16),
                     _buildUserSummaryCard(),
+                    const SizedBox(height: 16),
+                    _buildTripAnalyticsCard(),
                     const SizedBox(height: 16),
                     _buildRecentActivityCard(),
                     const SizedBox(height: 16),
@@ -199,20 +265,46 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
       title: 'Fleet Status',
       icon: Icons.local_shipping,
       color: AppColors.primaryBlue,
-      value: '$_activeVehicles Active, $_maintenanceVehicles Maintenance, ${_totalVehicles - _activeVehicles - _maintenanceVehicles} Inactive',
+      value: '$_totalVehicles Total: $_activeVehicles Active, $_maintenanceVehicles Maintenance, $_inactiveVehicles Inactive',
       actions: [
         _buildActionButton(
           'Manage Fleet',
           () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AdminFleetOverviewScreen()),
+            MaterialPageRoute(builder: (context) => const AdminFleetManagementScreen()),
           ),
         ),
         _buildActionButton(
-          'Add Vehicle',
+          'View All',
           () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AdminFleetOverviewScreen()),
+            MaterialPageRoute(builder: (context) => const AdminFleetManagementScreen()),
+          ),
+          isPrimary: true,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildBrokerCard() {
+    return _buildOverviewCard(
+      title: 'Broker Management',
+      icon: Icons.business,
+      color: Colors.amber,
+      value: '$_totalBrokers Total: $_activeBrokers Active, $_inactiveBrokers Inactive',
+      actions: [
+        _buildActionButton(
+          'Add Broker',
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminBrokerManagementScreen()),
+          ),
+        ),
+        _buildActionButton(
+          'Manage Brokers',
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminBrokerManagementScreen()),
           ),
           isPrimary: true,
         ),
@@ -239,6 +331,32 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
           () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AdminUsersManagementScreen()),
+          ),
+          isPrimary: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTripAnalyticsCard() {
+    return _buildOverviewCard(
+      title: 'Trip Analytics',
+      icon: Icons.local_shipping,
+      color: Colors.indigo,
+      value: '$_totalTrips Total: $_completedTrips Completed, $_inProgressTrips In Progress, ₹${_totalRevenue.toStringAsFixed(0)} Revenue',
+      actions: [
+        _buildActionButton(
+          'View Reports',
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminReportsScreen()),
+          ),
+        ),
+        _buildActionButton(
+          'Trip Details',
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminReportsScreen()),
           ),
           isPrimary: true,
         ),
@@ -273,29 +391,27 @@ class _AdminDashboardOverviewScreenState extends State<AdminDashboardOverviewScr
   }
 
   Widget _buildSystemStatusCard() {
+    final isHealthy = _systemHealth['database_status'] == 'Operational';
+    final dbStatus = _systemHealth['database_status'] ?? 'Unknown';
+    final apiTime = _systemHealth['api_response_time_ms'] ?? 0;
+    final uptime = _systemHealth['system_uptime_percent'] ?? 0.0;
+    
     return _buildOverviewCard(
-      title: 'System Status',
-      icon: Icons.settings,
-      color: Colors.blue,
-      value: 'All systems operational',
+      title: 'System Health',
+      icon: Icons.analytics,
+      color: isHealthy ? Colors.green : Colors.red,
+      value: 'DB: $dbStatus, API: ${apiTime}ms, Uptime: ${uptime.toStringAsFixed(1)}%',
       actions: [
         _buildActionButton(
-          'Settings',
-          () {
-            // TODO: Navigate to settings
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Settings coming soon!')),
-            );
-          },
+          'View Details',
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminReportsScreen()),
+          ),
         ),
         _buildActionButton(
-          'Maintenance',
-          () {
-            // TODO: Navigate to maintenance
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Maintenance panel coming soon!')),
-            );
-          },
+          'Refresh Health',
+          () => _loadDashboardData(),
           isPrimary: true,
         ),
       ],

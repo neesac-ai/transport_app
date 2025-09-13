@@ -5,6 +5,7 @@ class UserModel {
   final String name;
   final String email;
   final String address;
+  final String? companyName;
   final UserRole? role;
   final ApprovalStatus approvalStatus;
   final String? approvedBy;
@@ -20,6 +21,7 @@ class UserModel {
     required this.name,
     required this.email,
     required this.address,
+    this.companyName,
     this.role,
     this.approvalStatus = ApprovalStatus.pending,
     this.approvedBy,
@@ -38,6 +40,7 @@ class UserModel {
       'name': name,
       'email': email,
       'address': address,
+      'company_name': companyName,
       'role': role?.name == 'tripManager' ? 'trip_manager' : role?.name,
       'approval_status': approvalStatus.name,
       'approved_by': approvedBy,
@@ -57,6 +60,7 @@ class UserModel {
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       address: json['address'] ?? '',
+      companyName: json['company_name'] ?? json['companyName'],
       role: json['role'] != null 
           ? UserRole.values.firstWhere(
               (e) => e.name == json['role'],
@@ -95,6 +99,7 @@ class UserModel {
     String? name,
     String? email,
     String? address,
+    String? companyName,
     UserRole? role,
     ApprovalStatus? approvalStatus,
     String? approvedBy,
@@ -110,6 +115,7 @@ class UserModel {
       name: name ?? this.name,
       email: email ?? this.email,
       address: address ?? this.address,
+      companyName: companyName ?? this.companyName,
       role: role ?? this.role,
       approvalStatus: approvalStatus ?? this.approvalStatus,
       approvedBy: approvedBy ?? this.approvedBy,
